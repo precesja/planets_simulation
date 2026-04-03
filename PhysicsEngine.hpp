@@ -1,41 +1,58 @@
 #ifndef PhysicsEngine
 #define PhysicsEngine
 
+#include <vector>
 #include "Body.hpp"
 
 class Engine{
     public:
-    void rk4(Body& planet, double dt, const Body& Sun, double SunMass){
-        State current = planet.state;
+    void rk4(std::vector<Body>& planets, double dt){
+        int n = planets.size();
 
-        Derivative k1 = planet.Evaluation(current, Sun.state.position, SunMass);
+        // Initial state of the planets
+        std::vector<State> initial_states(n);
+        for(int i = 0; i < n; i++){
+            initial_states[i] = planets[i].state;
+        }
 
-        State s2 = {
-            s2.position = current.position + k1.d_position * (0.5*dt),
-            s2.velocity = current.velocity + k1.d_velocity * (0.5*dt)
-        };
+        // k1, k2, k3, k4 for each planet
+        std::vector<Derivative> k1(n), k2(n), k3(n), k4(n);
 
-        Derivative k2 = planet.Evaluation(s2, Sun.state.position, SunMass);
+        for(int i = 0; i < n; i++){
+            k1[i] = planets[i].Evaluation(initial_states[i], planets, i);
+        }
 
-        State s3 = {
-            s3.position = current.position + k2.d_position * (0.5*dt),
-            s3.velocity = current.velocity + k2.d_velocity * (0.5*dt)
-        };
+        for(int i = 0; i < n; i++){
+            State s2 = {
+                initial_states[i].position + k1[i].d_position * (0.5*dt),
+                initial_states[i].velocity + k1[i].d_velocity * (0.5*dt)
+            };
+            k2[i] = planets[i].Evaluation(s2, planets, i);
+        }
 
-        Derivative k3 = planet.Evaluation(s3, Sun.state.position, SunMass);
-        
-        State s4 = {
-            s4.position = current.position + k3.d_position * dt,
-            s4.velocity = current.velocity + k3.d_velocity * dt
-        };
+        for(int i = 0; i < n; i++){
+            State s3 = {
+                initial_states[i].position + k2[i].d_position * (0.5*dt),
+                initial_states[i].velocity + k2[i].d_velocity * (0.5*dt)
+            };
+            k3[i] = planets[i].Evaluation(s3, planets, i);
+        }
 
-        Derivative k4 = planet.Evaluation(s4, Sun.state.position, SunMass);
+        for(int i = 0; i < n; i++){
+            State s4 = {
+                initial_states[i].position + k3[i].d_position * dt,
+                initial_states[i].velocity + k3[i].d_velocity * dt
+            };
+            k4[i] = planets[i].Evaluation(s4, planets, i);
+        }
 
-         planet.state.position = current.position +
-         (k1.d_position + k2.d_position * 2.0 + k3.d_position * 2.0 + k4.d_position) * (1.0 / 6.0) * dt;
+        for(int i = 0; i < n; i++){
+            planets[i].state.position = initial_states[i].position +
+             (k1[i].d_position + k2[i].d_position * 2.0 + k3[i].d_position * 2.0 + k4[i].d_position) * (1.0 / 6.0) * dt;
 
-         planet.state.velocity = current.velocity +
-         (k1.d_velocity + k2.d_velocity * 2.0 + k3.d_velocity * 2.0 + k4.d_velocity) * (1.0 / 6.0) * dt;
+             planets[i].state.velocity = initial_states[i].velocity +
+             (k1[i].d_velocity + k2[i].d_velocity * 2.0 + k3[i].d_velocity * 2.0 + k4[i].d_velocity) * (1.0 / 6.0) * dt;
+        }
     }
 };
 #endif
